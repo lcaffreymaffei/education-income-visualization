@@ -1,0 +1,298 @@
+---
+title: 'EDUC 423A/SOC 302A: Assignment 3'
+author: "Lucy Caffrey-Maffei"
+date: "October 28, 2021"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Honor Code Statement
+
+We strongly encourage students to form study groups and students may discuss and work on assignments in groups. We expect that each student understands their own submission. As such, students must write their submissions independently and clearly disclose the names of all other students who were part of their study group. Additionally, lifting code or solutions directly from the internet (e.g., Google, GitHub, Stack Overflow) is a violation of the [Stanford Honor Code](https://communitystandards.stanford.edu/policies-and-guidance/honor-code). We take academic honesty and Honor Code violations extremely seriously and expect the same of students. If you have questions about what may or may not constitute an Honor Code violation, please reach out the teaching team.
+
+**Email: [l.caffreymaffei\@stanford.edu](mailto:l.caffreymaffei@stanford.edu){.email}**
+
+**SUID: lacm23/06527423**
+
+**Study Group: Laura Hinton, Molly Gibian, GG Guitart**
+
+I acknowledge and agree to abide by the Honor Code.
+
+**Signed: Lucy Caffrey-Maffei**
+
+# Setup and cleaning the data
+
+```{r data wrangling, echo=TRUE}
+# Include all code required to load packages, import, clean, pivot and join the data here. 
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(janitor)
+library(tidytext)
+
+##ers csv cleaning
+ers <- read_csv("Education.csv",skip=4)|> 
+  clean_names() |>
+  select(fips_code, starts_with("percent_of_adults_completing_four_years_"), starts_with("percent_of_adults_with_a_bachelors_degree_or_higher"))
+
+n_distinct(ers$fips_code)
+
+ers
+
+ers_long <- ers |>
+  pivot_longer(cols = -c(fips_code),
+               names_to = "year",
+               values_to = "percent_adults_w_4_plus_yrs_college") |>
+  na.omit() |>
+  mutate(year = str_replace(year, "percent_of_adults_completing_four_years_of_college_or_higher_1970", "1970"),
+         year = str_replace(year, "percent_of_adults_completing_four_years_of_college_or_higher_1980", "1980"),
+         year = str_replace(year, "percent_of_adults_with_a_bachelors_degree_or_higher_1990", "1990"),
+         year = str_replace(year, "percent_of_adults_with_a_bachelors_degree_or_higher_2000", "2000"),
+         year = str_replace(year, "percent_of_adults_with_a_bachelors_degree_or_higher_2014_18", "2010"))
+         
+ers_long
+
+##bea csv cleaning
+bea <- read_csv("RUCC_1983_2013.csv")|> 
+  clean_names() 
+
+bea
+
+ru_code_ref <- bea |>
+  select(ru_code, ruc_label) |>
+  group_by(ru_code) |>
+  summarize(first_non_missing = first(ruc_label)) |>
+  na.omit()
+
+ru_code_ref
+
+bea <- bea |>
+  select(fips_code, 
+         year, 
+         ru_code) |> 
+  mutate(year = str_replace(year, "2014_18", "2010"))
+
+n_distinct(bea$fips_code)
+unique(bea$year)
+
+
+##income csv cleaning
+income <- read_csv("CAINC1__ALL_AREAS_1969_2019.csv") |> 
+  clean_names() |>
+  rename(fips_code = geo_fips) |>
+  subset(description =="Per capita personal income (dollars) 2/") |>
+  subset(!is.na(region)) |>
+  select(-geo_name, -table_name, -line_code, -industry_classification, -unit, -description, -region)
+
+income
+
+n_distinct(income$fips_code)
+
+income_long <- income|>
+  pivot_longer(cols = -c(fips_code),
+               names_to = "year",
+               values_to = "per_capita_income")  |>
+  na.omit()
+
+income_long$per_capita_income <-as.numeric(income_long$per_capita_income)
+
+income_long <- income_long |> 
+  mutate(year = str_remove(year, "x"))
+
+unique(income_long$year)
+
+income_long <- income_long  |> 
+  mutate(year = str_replace(year, "1969", "1960"),
+         year = str_replace(year, "1971", "1970"),
+         year = str_replace(year, "1972", "1970"),
+         year = str_replace(year, "1973", "1970"),
+         year = str_replace(year, "1974", "1970"),
+         year = str_replace(year, "1975", "1970"),
+         year = str_replace(year, "1976", "1970"),
+         year = str_replace(year, "1977", "1970"),
+         year = str_replace(year, "1978", "1970"),
+         year = str_replace(year, "1979", "1970"),
+         year = str_replace(year, "1981", "1980"),
+         year = str_replace(year, "1982", "1980"),
+         year = str_replace(year, "1983", "1980"),
+         year = str_replace(year, "1984", "1980"),
+         year = str_replace(year, "1985", "1980"),
+         year = str_replace(year, "1986", "1980"),
+         year = str_replace(year, "1987", "1980"),
+         year = str_replace(year, "1988", "1980"),
+         year = str_replace(year, "1989", "1980"),
+         year = str_replace(year, "1991", "1990"),
+         year = str_replace(year, "1992", "1990"),
+         year = str_replace(year, "1993", "1990"),
+         year = str_replace(year, "1994", "1990"),
+         year = str_replace(year, "1995", "1990"),
+         year = str_replace(year, "1996", "1990"),
+         year = str_replace(year, "1997", "1990"),
+         year = str_replace(year, "1998", "1990"),
+         year = str_replace(year, "1999", "1990"),
+         year = str_replace(year, "2001", "2000"),
+         year = str_replace(year, "2002", "2000"),
+         year = str_replace(year, "2003", "2000"),
+         year = str_replace(year, "2004", "2000"),
+         year = str_replace(year, "2005", "2000"),
+         year = str_replace(year, "2006", "2000"),
+         year = str_replace(year, "2007", "2000"),
+         year = str_replace(year, "2008", "2000"),
+         year = str_replace(year, "2009", "2000"),
+         year = str_replace(year, "2011", "2010"),
+         year = str_replace(year, "2012", "2010"),
+         year = str_replace(year, "2013", "2010"),
+         year = str_replace(year, "2014", "2010"),
+         year = str_replace(year, "2015", "2010"),
+         year = str_replace(year, "2016", "2010"),
+         year = str_replace(year, "2017", "2010"),
+         year = str_replace(year, "2018", "2010"),
+         year = str_replace(year, "2019", "2010"))
+        
+income_long <- income_long  |> 
+  na.omit()  |> 
+  group_by(fips_code, year) |> 
+  summarize(mean_income = mean(per_capita_income))
+
+##joining datasets
+
+bea_ers <- inner_join(bea, ers_long)
+
+all <- inner_join(bea_ers, income_long)
+
+all$ru_code <- as.character(all$ru_code)
+
+##base merged and clean dataset
+all
+
+##dataset for questions 1 and 3
+all_q1 <- all |>
+  filter(ru_code !="0")|>
+  mutate(ru_code = str_replace(ru_code, "1", "urban"),
+         ru_code = str_replace(ru_code, "2", "urban"),
+         ru_code = str_replace(ru_code, "3", "urban"),
+         ru_code = str_replace(ru_code, "4", "suburban"),
+         ru_code = str_replace(ru_code, "5", "suburban"),
+         ru_code = str_replace(ru_code, "6", "suburban"),
+         ru_code = str_replace(ru_code, "7", "suburban"),
+         ru_code = str_replace(ru_code, "8", "rural"),
+         ru_code = str_replace(ru_code, "9", "rural"))  |>
+  group_by(ru_code, year) |>
+  summarise(mean_education = mean(percent_adults_w_4_plus_yrs_college), mean_income = mean(mean_income)) |>
+  na.omit()
+
+#dataset for question 2
+all_q2 <- all |>
+  group_by(year) |>
+  summarise(mean_education = mean(percent_adults_w_4_plus_yrs_college), mean_income = mean(mean_income)) |>
+  na.omit()
+
+```
+
+\newpage
+
+# How does the relationship between education and income varies between urban and rural areas over time?
+
+**Q1: How has educational attainment in counties changed over time for varying levels of urbanization?**
+
+```{r Q1, echo=TRUE}
+# Include all code required to generate your visualization here.
+
+ggplot(all_q1) +
+  geom_line(aes(x = year,
+                y = mean_education,
+                color = ru_code,
+                group = ru_code), 
+            size = 1) +
+  labs(title = "Figure 1. Educational Attainment over Time by Area Type",
+       x = "Decade",
+       y = "Adults with 4+ Years of College") +
+  theme_classic() +
+  theme(axis.text.x = element_text(color = "gray26", size = 10),
+        plot.title = element_text(color = "gray26", size = 16),
+        axis.text.y = element_text(color = "gray26", size = 10),
+        axis.title.x = element_text(color = "gray26", size = 12),
+        axis.title.y = element_text(color = "gray26", size = 12),
+        legend.text=element_text(color ="gray26", size = 9),
+        legend.title = element_text(color ="gray26", size = 12)) +
+   scale_color_manual(name = "Area Type", values=c("chocolate1", "mediumpurple1","goldenrod1")) +
+  scale_y_continuous(labels = scales::label_number(suffix = "%", accuracy = 1))
+```
+
+**Q2: How is county educational attainment level related to county personal income over time?**
+
+```{r Q2, echo=TRUE}
+# Include all code required to generate your visualization here.
+
+ggplot(all_q2) +
+  geom_point(aes(x = year,
+                y = mean_education,
+                size = mean_income)) +
+  labs(title = "Figure 2. Income by Educational Attainment over Time ",
+       x = "Deacde",
+       y = "Percent of Adults with 4+ Years of College",
+       size = "Average Income \nper Capita ($)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(color = "gray26", size = 10),
+        plot.title = element_text(color = "gray26", size = 16),
+        axis.text.y = element_text(color = "gray26", size = 10),
+        axis.title.x = element_text(color = "gray26", size = 12),
+        axis.title.y = element_text(color = "gray26", size = 12),
+        legend.text=element_text(color ="gray26", size = 9),
+        legend.title = element_text(color ="gray26", size = 12)) +
+  scale_y_continuous(labels = scales::label_comma(suffix = "%", accuracy = 1))
+```
+
+**Q3: How is county educational attainment level related to county personal income over time for different levels of urbanization?**
+
+```{r Q3, echo=TRUE}
+# Include all code required to generate your visualization here.
+
+
+ggplot(all_q1) +
+  geom_point(aes(x = year,
+                y = mean_education,
+                size = mean_income,
+                color = ru_code)) +
+  labs(title = "Figure 3. Income by Educational Attainment over Time\n Across Different Area Types",
+       x = "Decade",
+       y = "Adults with 4+ Years of College",
+       size = "Average Income \nper Capita ($)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(color = "gray26", size = 10),
+        plot.title = element_text(color = "gray26", size = 16),
+        axis.text.y = element_text(color = "gray26", size = 10),
+        axis.title.x = element_text(color = "gray26", size = 12),
+        axis.title.y = element_text(color = "gray26", size = 12),
+        legend.text=element_text(color ="gray26", size = 9),
+        legend.title = element_text(color ="gray26", size = 12)) +
+   scale_color_manual(name = "Area Type", values=c("chocolate1", "mediumpurple1","goldenrod1")) +
+  scale_y_continuous(labels = scales::label_comma(suffix = "%", accuracy = 1))
+
+
+
+```
+
+**Discussion**
+
+*Referencing your visualizations from above, answer the three research questions.*
+
+[Q1: How has educational attainment in counties changed over time for varying levels of urbanization?]{.ul}
+
+Overall, the share of adults in U.S. counties with four or more years of college has increased overtime (Figure 1). That is, the average U.S. county in the 1970s had only \~5 - \~10% of adults with a bachelor's degree or higher; by the 2010s, that percent had increased to \~17% - \~25%.
+
+The share of adults in a county with 4+ years of college education, however, is highly dependent on the type of area the county is in. Across time, rural counties, as compared to suburban and urban ones, have the lowest share of college-educated adults. Urban counties, on the other hand, consistently have the highest percent of college-educated adults in each decade.
+
+This is increasingly true from the 1980s and onward, as the gap between urban counties and suburban/rural counties has steadily increased over the decades.
+
+[Q2: How is county educational attainment level related to county personal income over time?]{.ul}
+
+As evidenced by the size of the dots on the y-axis in Figure 2, there is a positive association between the share of college-educated adults in a county and that county's average per-capita income. That is, the more highly educated the county is (the more the dot moves upward on the y-axis), the higher the income is (the larger the size of the dot). This trend is true across every decade from the 1970s to the 2010s, although with each sequential decade, both the college-attainment rate and income increase (the dot both moves up the y-axis and gets larger).
+
+[Q3: How is county educational attainment level related to county personal income over time for different levels of urbanization?]{.ul}
+
+Surprisingly, Figure 3 shows that the temporal association between college-attainment levels and income is similar across the different county types. That is, although urban counties are more highly educated than non-urban ones, urban, suburban, and rural counties all have similar average per-capita incomes. This is evidenced in the size of the dots on the y-axis for each decade, which are all almost exactly the same. The one decade where a county's area type seems to be most meaningful is the 1970s, where urban counties have both the highest share of college-educated adults and the highest per-capita income, followed by suburban and then rural counties. To be sure, in the 1970s, the size of the dot (representing income level) increases as the percent of adults with 4+ years of college increases, and urban counties have the highest rates of adults in that category.
+
+This indicates that, in the 1980s and onward, a county's area type is consequential for educational attainment, but not for income or for return of educational attainment on income. It should be noted, however, that the analysis in question considers data from the county-level, so these inferences cannot be made at the individual level.
